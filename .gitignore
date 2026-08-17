@@ -1,5 +1,5 @@
 # Ignore local config with actual secrets
-config.example.js
+config.js
 
 # OS & Editor files
 .DS_Store
