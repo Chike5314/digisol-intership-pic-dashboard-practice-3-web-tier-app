@@ -104,24 +104,41 @@ export async function handleFormSubmit(e) {
 
   const id = document.getElementById('form-photo-id').value;
   const name = document.getElementById('form-name').value;
-  const img_url = document.getElementById('form-url').value;
+  const fileInput = document.getElementById('form-file');
+  const file = fileInput.files[0];
 
-  const isEdit = Boolean(id);
+  let img_url = '';
 
   try {
-    if (isEdit) {
-      await ApiService.updatePhoto({ id, name, img_url });
-      showToast('Photo record updated', 'success');
+    // Inside handleFormSubmit in app.js
+    if (file) {
+      // 1. Get pre-signed URL from Lambda
+      const { uploadUrl, publicUrl } = await ApiService.getUploadUrl(file.name, file.type);
+
+      // 2. Upload file directly to S3
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file
+      });
+
+      // 3. Set the image URL to the permanent S3 location
+      img_url = publicUrl;
+    }
+
+    if (id) {
+      // Update existing DynamoDB record
+      await ApiService.updatePhoto({ id, name, ...(img_url && { img_url }) });
     } else {
+      // Create new DynamoDB record
       await ApiService.createPhoto({ name, img_url });
-      showToast('Photo record created', 'success');
     }
 
     closeModal();
     fetchPhotos();
   } catch (err) {
-    console.error('Save error:', err);
-    showToast(`Error saving record: ${err.message}`, 'error');
+    console.error('Upload Error:', err);
+    showToast(`Error: ${err.message}`, 'error');
   }
 }
 

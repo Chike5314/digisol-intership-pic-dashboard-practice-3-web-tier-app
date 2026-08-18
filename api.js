@@ -84,5 +84,11 @@ export const ApiService = {
       method: 'DELETE',
       body: JSON.stringify({ id })
     });
+  },
+  async getUploadUrl(fileName, fileType) {
+    return await request('/get-upload-url', {
+      method: 'POST',
+      body: JSON.stringify({ fileName, fileType })
+    });
   }
 };
