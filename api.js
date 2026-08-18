@@ -60,6 +60,10 @@ export const ApiService = {
 
   // 3. POST /create-digisol-intership
   async createPhoto(payload) {
+    const bodyWithId = {
+    id: crypto.randomUUID(), // Generates unique ID string
+    ...payload
+  };
     return await request('/create-digisol-intership', {
       method: 'POST',
       body: JSON.stringify(payload) // expects { name, img_url }
