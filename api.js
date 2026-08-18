@@ -20,6 +20,7 @@ function getHeaders() {
  */
 async function request(endpoint, options = {}) {
   const url = `${getBaseUrl()}${endpoint}`;
+
   const config = {
     ...options,
     headers: {
@@ -32,14 +33,41 @@ async function request(endpoint, options = {}) {
     const response = await fetch(url, config);
 
     if (!response.ok) {
-      throw new Error(`API Request failed (${response.status}): ${response.statusText}`);
+      throw new Error(
+        `API Request failed (${response.status}): ${response.statusText}`
+      );
     }
 
-    // Handle empty responses (like 204 No Content)
     const text = await response.text();
-    return text ? JSON.parse(text) : {};
+
+    if (!text) {
+      return {};
+    }
+
+    let data = JSON.parse(text);
+
+    // Handle Lambda/API Gateway proxy response
+    if (
+      data &&
+      typeof data === 'object' &&
+      data.body &&
+      typeof data.body === 'string'
+    ) {
+      try {
+        data = JSON.parse(data.body);
+      } catch (e) {
+        // body wasn't JSON, leave it as-is
+      }
+    }
+
+    return data;
+
   } catch (error) {
-    console.error(`[API Error] ${options.method || 'GET'} ${endpoint}:`, error);
+    console.error(
+      `[API Error] ${options.method || 'GET'} ${endpoint}:`,
+      error
+    );
+
     throw error;
   }
 }
