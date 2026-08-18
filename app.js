@@ -104,40 +104,53 @@ export async function handleFormSubmit(e) {
 
   const id = document.getElementById('form-photo-id').value;
   const name = document.getElementById('form-name').value;
+  const existingUrl = document.getElementById('form-url')?.value || '';
   const fileInput = document.getElementById('form-file');
-  const file = fileInput.files[0];
+  const file = fileInput?.files?.[0];
 
-  let img_url = '';
+  let img_url = existingUrl; // Default to existing URL if no new file is uploaded
 
   try {
-    // Inside handleFormSubmit in app.js
     if (file) {
+      showToast('Uploading image to S3...', 'info');
+
       // 1. Get pre-signed URL from Lambda
-      const { uploadUrl, publicUrl } = await ApiService.getUploadUrl(file.name, file.type);
+      const response = await ApiService.getUploadUrl(file.name, file.type);
+      const uploadUrl = response.uploadUrl || response.upload_url;
+      const publicUrl = response.publicUrl || response.public_url || response.fileUrl;
+
+      if (!uploadUrl) {
+        throw new Error('Failed to retrieve upload URL from server.');
+      }
 
       // 2. Upload file directly to S3
-      await fetch(uploadUrl, {
+      const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': file.type },
         body: file
       });
 
-      // 3. Set the image URL to the permanent S3 location
+      if (!uploadRes.ok) {
+        throw new Error(`S3 Upload failed with status ${uploadRes.status}`);
+      }
+
+      // 3. Update img_url to permanent S3 location
       img_url = publicUrl;
     }
 
+    // Save or update DynamoDB record
     if (id) {
-      // Update existing DynamoDB record
-      await ApiService.updatePhoto({ id, name, ...(img_url && { img_url }) });
+      await ApiService.updatePhoto({ id, name, img_url });
+      showToast('Record updated successfully', 'success');
     } else {
-      // Create new DynamoDB record
       await ApiService.createPhoto({ name, img_url });
+      showToast('Record created successfully', 'success');
     }
 
     closeModal();
     fetchPhotos();
   } catch (err) {
-    console.error('Upload Error:', err);
+    console.error('Submit Error:', err);
     showToast(`Error: ${err.message}`, 'error');
   }
 }
@@ -158,10 +171,14 @@ export async function deletePhotoRecord(id) {
 export function openModal(id = '', name = '', url = '') {
   const modal = document.getElementById('photo-modal');
   const title = document.getElementById('modal-title');
+  const fileInput = document.getElementById('form-file');
   
   document.getElementById('form-photo-id').value = id;
   document.getElementById('form-name').value = name;
-  document.getElementById('form-url').value = url;
+  
+  const urlInput = document.getElementById('form-url');
+  if (urlInput) urlInput.value = url === DEFAULT_PLACEHOLDER ? '' : url;
+  if (fileInput) fileInput.value = '';
 
   if (title) {
     title.textContent = id ? 'Edit Photo Record' : 'Add Photo Record';

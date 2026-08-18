@@ -1,8 +1,8 @@
 // api.js - Centralized API Service Module
 
 // Safely pull config values from window or environment
-const getBaseUrl = () => typeof CONFIG !== 'undefined' ? CONFIG.API_URL : '';
-const getApiKey = () => typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '';
+const getBaseUrl = () => (typeof CONFIG !== 'undefined' ? CONFIG.API_URL : '');
+const getApiKey = () => (typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '');
 
 /**
  * Helper to build standard headers
@@ -46,7 +46,7 @@ async function request(endpoint, options = {}) {
 
     let data = JSON.parse(text);
 
-    // Handle Lambda/API Gateway proxy response
+    // Handle Lambda/API Gateway proxy response (double JSON parsing if body is stringified)
     if (
       data &&
       typeof data === 'object' &&
@@ -56,12 +56,11 @@ async function request(endpoint, options = {}) {
       try {
         data = JSON.parse(data.body);
       } catch (e) {
-        // body wasn't JSON, leave it as-is
+        // body wasn't stringified JSON, leave it as-is
       }
     }
 
     return data;
-
   } catch (error) {
     console.error(
       `[API Error] ${options.method || 'GET'} ${endpoint}:`,
@@ -83,18 +82,20 @@ export const ApiService = {
 
   // 2. GET /read-digisol-intership?id=xxx
   async readPhoto(id) {
-    return await request(`/read-digisol-intership?id=${encodeURIComponent(id)}`, { method: 'GET' });
+    return await request(`/read-digisol-intership?id=${encodeURIComponent(id)}`, {
+      method: 'GET'
+    });
   },
 
   // 3. POST /create-digisol-intership
   async createPhoto(payload) {
     const bodyWithId = {
-    id: crypto.randomUUID(), // Generates unique ID string
-    ...payload
-  };
+      id: payload.id || crypto.randomUUID(), // Preserve payload ID if present, otherwise generate one
+      ...payload
+    };
     return await request('/create-digisol-intership', {
       method: 'POST',
-      body: JSON.stringify(payload) // expects { name, img_url }
+      body: JSON.stringify(bodyWithId) // Fixed: Now sends bodyWithId instead of payload
     });
   },
 
@@ -102,7 +103,7 @@ export const ApiService = {
   async updatePhoto(payload) {
     return await request('/UpdateDigisolGroup', {
       method: 'PUT',
-      body: JSON.stringify(payload) // expects { id, name, img_url }
+      body: JSON.stringify(payload) // Expects { id, name, img_url }
     });
   },
 
@@ -113,6 +114,8 @@ export const ApiService = {
       body: JSON.stringify({ id })
     });
   },
+
+  // 6. POST /get-upload-url (S3 Pre-signed URL)
   async getUploadUrl(fileName, fileType) {
     return await request('/get-upload-url', {
       method: 'POST',
