@@ -127,7 +127,9 @@ function renderGrid(data) {
 }
 
 export async function handleFormSubmit(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) {
+    e.preventDefault();
+  }
 
   const id = document.getElementById('form-photo-id').value;
   const name = document.getElementById('form-name').value.trim();
