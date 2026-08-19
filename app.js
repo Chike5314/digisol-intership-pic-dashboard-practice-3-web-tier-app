@@ -162,6 +162,9 @@ export async function handleFormSubmit(e) {
 
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
+        headers: {
+          'Content-Type': fileType
+        },
         body: file
       });
 
