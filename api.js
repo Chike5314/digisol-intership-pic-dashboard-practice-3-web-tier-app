@@ -1,6 +1,5 @@
 // api.js - Centralized API Service Module
 
-// Safely pull config values from window or environment
 const getBaseUrl = () => (typeof CONFIG !== 'undefined' ? CONFIG.API_URL : '');
 const getApiKey = () => (typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '');
 
@@ -39,14 +38,11 @@ async function request(endpoint, options = {}) {
     }
 
     const text = await response.text();
-
-    if (!text) {
-      return {};
-    }
+    if (!text) return {};
 
     let data = JSON.parse(text);
 
-    // Handle Lambda/API Gateway proxy double JSON parsing
+    // Handle Lambda/API Gateway proxy double JSON stringification
     if (
       data &&
       typeof data === 'object' &&
@@ -56,7 +52,7 @@ async function request(endpoint, options = {}) {
       try {
         data = JSON.parse(data.body);
       } catch (e) {
-        // body wasn't stringified JSON, leave as-is
+        // body wasn't stringified JSON, keep as object
       }
     }
 
@@ -68,6 +64,16 @@ async function request(endpoint, options = {}) {
     );
     throw error;
   }
+}
+
+/**
+ * Utility to generate unique ID with fallback
+ */
+function generateUniqueId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'id-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
 }
 
 /**
@@ -91,7 +97,7 @@ export const ApiService = {
     const normalizedPayload = {
       ...payload,
       img_url: payload.img_url || payload.url || '',
-      id: payload.id || crypto.randomUUID()
+      id: payload.id || generateUniqueId()
     };
 
     return await request('/create-digisol-intership', {
@@ -123,26 +129,32 @@ export const ApiService = {
 
   // 6. POST /get-upload-url (Fetch Pre-signed URL from API Gateway)
   async getUploadUrl(fileName, fileType) {
+    const resolvedName = fileName || 'upload.jpg';
+    const resolvedType = fileType || 'image/jpeg';
+
     return await request('/get-upload-url', {
       method: 'POST',
       body: JSON.stringify({
-        fileName: fileName || 'upload.jpg',
-        fileType: fileType || 'image/jpeg'
+        // Transmit both casing standards to guarantee match across Python/JS backends
+        fileName: resolvedName,
+        file_name: resolvedName,
+        fileType: resolvedType,
+        file_type: resolvedType
       })
     });
   },
 
-  // 7. DIRECT S3 UPLOAD (Uploads raw binary file directly to S3)
+  // 7. DIRECT S3 UPLOAD (Uploads raw binary file directly to S3 bucket)
   async uploadFileToS3(uploadUrl, file) {
     const fileType = file.type || 'image/jpeg';
 
-    // MUST use raw fetch() without API Gateway headers (like x-api-key)
+    // Directly execute raw fetch without passing API Gateway custom headers (e.g., x-api-key)
     const response = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
-        'Content-Type': fileType // MUST match what was signed in Lambda
+        'Content-Type': fileType
       },
-      body: file // Send raw File/Blob object directly
+      body: file
     });
 
     if (!response.ok) {
