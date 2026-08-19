@@ -149,9 +149,10 @@ export async function handleFormSubmit(e) {
 
   try {
     if (file) {
+      const fileType = file.type || 'image/jpeg';
       showToast('Uploading image to S3...', 'info');
 
-      const response = await ApiService.getUploadUrl(file.name, file.type);
+      const response = await ApiService.getUploadUrl(file.name, fileType);
       const uploadUrl = response.uploadUrl || response.upload_url;
       const publicUrl = response.publicUrl || response.public_url || response.fileUrl;
 
@@ -161,7 +162,9 @@ export async function handleFormSubmit(e) {
 
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        headers: {
+          'Content-Type': fileType
+        },
         body: file
       });
 
