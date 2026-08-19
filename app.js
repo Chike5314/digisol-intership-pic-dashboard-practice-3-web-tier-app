@@ -161,18 +161,8 @@ export async function handleFormSubmit(e) {
         throw new Error('Failed to retrieve upload URL from server.');
       }
 
-      // Upload binary with matching Content-Type header
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': fileType
-        },
-        body: file
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error(`S3 Upload failed with status ${uploadRes.status}`);
-      }
+      // Upload the binary directly to S3 through the centralized API service.
+      await ApiService.uploadFileToS3(uploadUrl, file);
 
       img_url = publicUrl || uploadUrl.split('?')[0];
     }
