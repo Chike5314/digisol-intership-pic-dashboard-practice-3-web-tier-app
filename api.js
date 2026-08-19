@@ -89,21 +89,28 @@ export const ApiService = {
 
   // 3. POST /create-digisol-intership
   async createPhoto(payload) {
-    const bodyWithId = {
-      id: payload.id || crypto.randomUUID(), // Preserve payload ID if present, otherwise generate one
-      ...payload
+    const normalizedPayload = {
+      ...payload,
+      img_url: payload.img_url || payload.url || '',
+      id: payload.id || crypto.randomUUID()
     };
+
     return await request('/create-digisol-intership', {
       method: 'POST',
-      body: JSON.stringify(bodyWithId) // Fixed: Now sends bodyWithId instead of payload
+      body: JSON.stringify(normalizedPayload)
     });
   },
 
   // 4. PUT /UpdateDigisolGroup
   async updatePhoto(payload) {
+    const normalizedPayload = {
+      ...payload,
+      img_url: payload.img_url || payload.url || ''
+    };
+
     return await request('/UpdateDigisolGroup', {
       method: 'PUT',
-      body: JSON.stringify(payload) // Expects { id, name, img_url }
+      body: JSON.stringify(normalizedPayload)
     });
   },
 
@@ -119,7 +126,10 @@ export const ApiService = {
   async getUploadUrl(fileName, fileType) {
     return await request('/get-upload-url', {
       method: 'POST',
-      body: JSON.stringify({ fileName, fileType })
+      body: JSON.stringify({
+        fileName: fileName || 'upload.jpg',
+        fileType: fileType || 'image/jpeg'
+      })
     });
   }
 };

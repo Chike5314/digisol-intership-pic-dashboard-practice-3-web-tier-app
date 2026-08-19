@@ -10,8 +10,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupEventListeners() {
   const form = document.getElementById('photo-form');
+  const fileInput = document.getElementById('form-file');
+  const urlInput = document.getElementById('form-url');
+
   if (form) {
     form.addEventListener('submit', handleFormSubmit);
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', () => {
+      const preview = document.getElementById('preview-img');
+      const previewWrap = document.getElementById('image-preview');
+      const file = fileInput.files?.[0];
+
+      if (previewWrap) {
+        previewWrap.style.display = file ? 'block' : 'none';
+      }
+
+      if (preview && file) {
+        const fileReader = new FileReader();
+        fileReader.onload = (event) => {
+          preview.src = event.target?.result || '';
+        };
+        fileReader.readAsDataURL(file);
+      }
+
+      if (file && urlInput) {
+        urlInput.value = '';
+      }
+    });
   }
 }
 
@@ -103,18 +130,27 @@ export async function handleFormSubmit(e) {
   e.preventDefault();
 
   const id = document.getElementById('form-photo-id').value;
-  const name = document.getElementById('form-name').value;
-  const existingUrl = document.getElementById('form-url')?.value || '';
+  const name = document.getElementById('form-name').value.trim();
+  const existingUrl = document.getElementById('form-url')?.value.trim() || '';
   const fileInput = document.getElementById('form-file');
   const file = fileInput?.files?.[0];
 
-  let img_url = existingUrl; // Default to existing URL if no new file is uploaded
+  if (!name) {
+    showToast('Please enter a photo name', 'error');
+    return;
+  }
+
+  if (!file && !existingUrl) {
+    showToast('Please either upload an image file or enter an image URL.', 'error');
+    return;
+  }
+
+  let img_url = existingUrl;
 
   try {
     if (file) {
       showToast('Uploading image to S3...', 'info');
 
-      // 1. Get pre-signed URL from Lambda
       const response = await ApiService.getUploadUrl(file.name, file.type);
       const uploadUrl = response.uploadUrl || response.upload_url;
       const publicUrl = response.publicUrl || response.public_url || response.fileUrl;
@@ -123,10 +159,9 @@ export async function handleFormSubmit(e) {
         throw new Error('Failed to retrieve upload URL from server.');
       }
 
-      // 2. Upload file directly to S3
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type },
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
         body: file
       });
 
@@ -134,16 +169,16 @@ export async function handleFormSubmit(e) {
         throw new Error(`S3 Upload failed with status ${uploadRes.status}`);
       }
 
-      // 3. Update img_url to permanent S3 location
-      img_url = publicUrl;
+      img_url = publicUrl || uploadUrl.split('?')[0];
     }
 
-    // Save or update DynamoDB record
+    const payload = { id, name, img_url };
+
     if (id) {
-      await ApiService.updatePhoto({ id, name, img_url });
+      await ApiService.updatePhoto(payload);
       showToast('Record updated successfully', 'success');
     } else {
-      await ApiService.createPhoto({ name, img_url });
+      await ApiService.createPhoto(payload);
       showToast('Record created successfully', 'success');
     }
 

@@ -59,44 +59,29 @@
       </div>
       <form id="photo-form" onsubmit="handleFormSubmit(event)">
         <input type="hidden" id="form-photo-id" />
-        
+
         <div class="form-group">
           <label for="form-name">Picture Name / Title</label>
           <input type="text" id="form-name" placeholder="e.g., AWS Serverless Architecture Demo" required />
         </div>
 
         <div class="form-group">
-          <label for="form-url">S3 Image URL (`img_url`)</label>
-          <input type="url" id="form-url" placeholder="https://your-bucket.s3.amazonaws.com/internship-pic.jpg" required />
+          <label for="form-url">Image URL (optional if you upload a file)</label>
+          <input type="url" id="form-url" placeholder="https://your-bucket.s3.amazonaws.com/internship-pic.jpg" />
         </div>
 
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="save-btn">Save Record</button>
-        </div>
-      </form>
-      <form id="photo-form">
-        <input type="hidden" id="form-photo-id" />
-
-        <div class="form-group">
-          <label for="form-name">Photo Name</label>
-          <input type="text" id="form-name" required placeholder="Enter title" />
-        </div>
-
-        <!-- File Upload Field -->
         <div class="form-group">
           <label for="form-file">Select Image File</label>
           <input type="file" id="form-file" accept="image/png, image/jpeg, image/webp" />
         </div>
 
-        <!-- Optional preview container -->
         <div id="image-preview" class="form-group" style="display:none;">
           <img id="preview-img" src="" alt="Preview" style="max-height: 150px; border-radius: 8px; object-fit: cover;" />
         </div>
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Record</button>
+          <button type="submit" class="btn btn-primary" id="save-btn">Save Record</button>
         </div>
       </form>
     </div>
