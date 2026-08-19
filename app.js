@@ -141,7 +141,7 @@ export async function handleFormSubmit(e) {
   }
 
   if (!file && !existingUrl) {
-    showToast('Please either upload an image file or enter an image URL.', 'error');
+    showToast('Please upload an image file or enter an image URL.', 'error');
     return;
   }
 
@@ -149,21 +149,24 @@ export async function handleFormSubmit(e) {
 
   try {
     if (file) {
+      const fileType = file.type || 'image/jpeg';
       showToast('Uploading image to S3...', 'info');
 
-      // 1. Get presigned upload URL from Lambda via API Gateway
-      const response = await ApiService.getUploadUrl(file.name, file.type);
+      // Request signed URL passing file name and mime type
+      const response = await ApiService.getUploadUrl(file.name, fileType);
       const uploadUrl = response.uploadUrl || response.upload_url;
       const publicUrl = response.publicUrl || response.public_url;
 
       if (!uploadUrl) {
-        throw new Error('Failed to retrieve presigned upload URL from server.');
+        throw new Error('Failed to retrieve upload URL from server.');
       }
 
-      // 2. Direct S3 Upload
-      // IMPORTANT: Headers are omitted because Lambda omitted 'ContentType' from presigned URL generation
+      // Upload binary with matching Content-Type header
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
+        headers: {
+          'Content-Type': fileType
+        },
         body: file
       });
 
@@ -174,7 +177,6 @@ export async function handleFormSubmit(e) {
       img_url = publicUrl || uploadUrl.split('?')[0];
     }
 
-    // Omit `id` when creating new records to prevent empty primary keys in DynamoDB
     const payload = id ? { id, name, img_url } : { name, img_url };
 
     if (id) {
