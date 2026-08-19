@@ -129,18 +129,20 @@ export const ApiService = {
 
   // 6. POST /get-upload-url (Fetch Pre-signed URL from API Gateway)
   async getUploadUrl(fileName, fileType) {
-    const resolvedName = fileName || 'upload.jpg';
-    const resolvedType = fileType || 'image/jpeg';
+    if (!fileName) {
+      throw new Error('fileName is required for generating an upload URL.');
+    }
+
+    const payload = {
+      fileName,
+      fileType: fileType || 'image/jpeg'
+    };
+
+    console.log('[Upload Debug] Requesting presigned URL with payload:', payload);
 
     return await request('/get-upload-url', {
       method: 'POST',
-      body: JSON.stringify({
-        // Transmit both casing standards to guarantee match across Python/JS backends
-        fileName: resolvedName,
-        file_name: resolvedName,
-        fileType: resolvedType,
-        file_type: resolvedType
-      })
+      body: JSON.stringify(payload)
     });
   },
 

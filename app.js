@@ -151,20 +151,25 @@ export async function handleFormSubmit(e) {
     if (file) {
       const fileType = file.type || 'image/jpeg';
       console.log(`[Upload Debug] Selected File Name: ${file.name}`);
-      console.log(`[Upload Debug] Selected File MIME Type: ${fileType}`);
+      console.log(`[Upload Debug] Selected File MIME Type: ${file.type}`);
       showToast('Uploading image to S3...', 'info');
 
-      // Request signed URL passing file name and mime type
+      // Request the signed URL with the file name and MIME type as separate arguments.
       const response = await ApiService.getUploadUrl(file.name, fileType);
-      console.log('[Upload Debug] Lambda Response:', response);
-      const uploadUrl = response.uploadUrl || response.upload_url;
-      const publicUrl = response.publicUrl || response.public_url;
+      console.log('[Upload Debug] Lambda Success Response:', response);
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      const uploadUrl = response.uploadUrl;
+      const publicUrl = response.publicUrl;
 
       if (!uploadUrl) {
         throw new Error('Failed to retrieve upload URL from server.');
       }
 
-      // Upload the binary directly to S3 through the centralized API service.
+      // Upload the raw file directly to S3.
       await ApiService.uploadFileToS3(uploadUrl, file);
 
       img_url = publicUrl || uploadUrl.split('?')[0];
