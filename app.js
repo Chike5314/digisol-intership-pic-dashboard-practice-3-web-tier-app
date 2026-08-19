@@ -150,10 +150,13 @@ export async function handleFormSubmit(e) {
   try {
     if (file) {
       const fileType = file.type || 'image/jpeg';
+      console.log(`[Upload Debug] Selected File Name: ${file.name}`);
+      console.log(`[Upload Debug] Selected File MIME Type: ${fileType}`);
       showToast('Uploading image to S3...', 'info');
 
       // Request signed URL passing file name and mime type
       const response = await ApiService.getUploadUrl(file.name, fileType);
+      console.log('[Upload Debug] Lambda Response:', response);
       const uploadUrl = response.uploadUrl || response.upload_url;
       const publicUrl = response.publicUrl || response.public_url;
 
