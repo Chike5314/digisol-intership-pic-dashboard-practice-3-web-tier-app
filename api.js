@@ -146,18 +146,22 @@ export const ApiService = {
 
   // 7. DIRECT S3 UPLOAD (Uploads raw binary file directly to S3 bucket)
   async uploadFileToS3(uploadUrl, file) {
-    const fileType = file.type || 'image/jpeg';
+    const urlObj = new URL(uploadUrl);
+    const signedContentType = urlObj.searchParams.get('content-type');
+    const finalContentType = signedContentType || file.type || 'image/jpeg';
 
     // Directly execute raw fetch without passing API Gateway custom headers (e.g., x-api-key)
     const response = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
-        'Content-Type': fileType
+        'Content-Type': finalContentType
       },
       body: file
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[S3 Upload Error Response]:', errorText);
       throw new Error(`S3 Direct Upload failed with status ${response.status}`);
     }
 
