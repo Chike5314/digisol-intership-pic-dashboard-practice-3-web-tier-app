@@ -5,7 +5,7 @@ const getBaseUrl = () => (typeof CONFIG !== 'undefined' ? CONFIG.API_URL : '');
 const getApiKey = () => (typeof CONFIG !== 'undefined' ? CONFIG.API_KEY : '');
 
 /**
- * Helper to build standard headers
+ * Helper to build standard API Gateway headers
  */
 function getHeaders() {
   const apiKey = getApiKey();
@@ -16,7 +16,7 @@ function getHeaders() {
 }
 
 /**
- * Generic request wrapper to handle HTTP errors and response parsing
+ * Generic request wrapper to handle API Gateway calls
  */
 async function request(endpoint, options = {}) {
   const url = `${getBaseUrl()}${endpoint}`;
@@ -46,7 +46,7 @@ async function request(endpoint, options = {}) {
 
     let data = JSON.parse(text);
 
-    // Handle Lambda/API Gateway proxy response (double JSON parsing if body is stringified)
+    // Handle Lambda/API Gateway proxy double JSON parsing
     if (
       data &&
       typeof data === 'object' &&
@@ -56,7 +56,7 @@ async function request(endpoint, options = {}) {
       try {
         data = JSON.parse(data.body);
       } catch (e) {
-        // body wasn't stringified JSON, leave it as-is
+        // body wasn't stringified JSON, leave as-is
       }
     }
 
@@ -66,7 +66,6 @@ async function request(endpoint, options = {}) {
       `[API Error] ${options.method || 'GET'} ${endpoint}:`,
       error
     );
-
     throw error;
   }
 }
@@ -122,7 +121,7 @@ export const ApiService = {
     });
   },
 
-  // 6. POST /get-upload-url (S3 Pre-signed URL)
+  // 6. POST /get-upload-url (Fetch Pre-signed URL from API Gateway)
   async getUploadUrl(fileName, fileType) {
     return await request('/get-upload-url', {
       method: 'POST',
@@ -131,5 +130,25 @@ export const ApiService = {
         fileType: fileType || 'image/jpeg'
       })
     });
+  },
+
+  // 7. DIRECT S3 UPLOAD (Uploads raw binary file directly to S3)
+  async uploadFileToS3(uploadUrl, file) {
+    const fileType = file.type || 'image/jpeg';
+
+    // MUST use raw fetch() without API Gateway headers (like x-api-key)
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': fileType // MUST match what was signed in Lambda
+      },
+      body: file // Send raw File/Blob object directly
+    });
+
+    if (!response.ok) {
+      throw new Error(`S3 Direct Upload failed with status ${response.status}`);
+    }
+
+    return true;
   }
 };

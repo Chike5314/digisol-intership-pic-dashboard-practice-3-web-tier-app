@@ -104,7 +104,7 @@ function renderGrid(data) {
       <div class="card-body">
         <h3 class="photo-title">${photoName}</h3>
         <div class="card-actions">
-          <button class="btn btn-edit" data-id="${photoId}" data-name="${photoName}" data-url="${imageUrl}">
+          <button class="btn btn-edit" data-id="${photoId}">
             <i class="fa-solid fa-pen"></i> Edit
           </button>
           <button class="btn btn-delete" data-id="${photoId}">
@@ -149,22 +149,21 @@ export async function handleFormSubmit(e) {
 
   try {
     if (file) {
-      const fileType = file.type || 'image/jpeg';
       showToast('Uploading image to S3...', 'info');
 
-      const response = await ApiService.getUploadUrl(file.name, fileType);
+      // 1. Get presigned upload URL from Lambda via API Gateway
+      const response = await ApiService.getUploadUrl(file.name, file.type);
       const uploadUrl = response.uploadUrl || response.upload_url;
-      const publicUrl = response.publicUrl || response.public_url || response.fileUrl;
+      const publicUrl = response.publicUrl || response.public_url;
 
       if (!uploadUrl) {
-        throw new Error('Failed to retrieve upload URL from server.');
+        throw new Error('Failed to retrieve presigned upload URL from server.');
       }
 
+      // 2. Direct S3 Upload
+      // IMPORTANT: Headers are omitted because Lambda omitted 'ContentType' from presigned URL generation
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
-        headers: {
-          'Content-Type': fileType
-        },
         body: file
       });
 
@@ -175,7 +174,8 @@ export async function handleFormSubmit(e) {
       img_url = publicUrl || uploadUrl.split('?')[0];
     }
 
-    const payload = { id, name, img_url };
+    // Omit `id` when creating new records to prevent empty primary keys in DynamoDB
+    const payload = id ? { id, name, img_url } : { name, img_url };
 
     if (id) {
       await ApiService.updatePhoto(payload);
@@ -218,6 +218,8 @@ export function openModal(id = '', name = '', url = '') {
   if (urlInput) urlInput.value = url === DEFAULT_PLACEHOLDER ? '' : url;
   if (fileInput) fileInput.value = '';
 
+  resetImagePreview();
+
   if (title) {
     title.textContent = id ? 'Edit Photo Record' : 'Add Photo Record';
   }
@@ -230,6 +232,14 @@ export function closeModal() {
   const form = document.getElementById('photo-form');
   if (modal) modal.classList.remove('active');
   if (form) form.reset();
+  resetImagePreview();
+}
+
+function resetImagePreview() {
+  const preview = document.getElementById('preview-img');
+  const previewWrap = document.getElementById('image-preview');
+  if (previewWrap) previewWrap.style.display = 'none';
+  if (preview) preview.src = '';
 }
 
 function showSkeletonLoader() {
